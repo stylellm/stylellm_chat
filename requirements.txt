@@ -1,3 +1,4 @@
 transformers
 torch
 openai
+accelerate

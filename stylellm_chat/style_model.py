@@ -1,4 +1,5 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 
 class StyleModel(object):
@@ -17,7 +18,12 @@ class StyleModel(object):
         model_name = model_map.get(scene)
         if model_name:
             tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForCausalLM.from_pretrained(model_name).to(self.device).eval()
+            if self.device.startswith("cuda"):
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name, device_map=self.device, torch_dtype=torch.float16).eval()
+            else:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name, device_map=self.device).eval()
             return tokenizer, model
         else:
             print(f"Scene {scene} is not supported, no style is applied")
