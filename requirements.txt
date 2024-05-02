@@ -2,3 +2,5 @@ transformers
 torch
 openai
 accelerate
+autoawq
+gradio

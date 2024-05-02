@@ -1,32 +1,48 @@
+import re
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 
+def unpack(sent):
+    sent = sent.strip()
+    result = sent
+
+    pattern = r'^.{2,10}[：:] {0,1}(.*)$'
+    results = re.findall(pattern, sent, re.DOTALL)
+    if results:
+        result = results[0]
+    result = result.strip().strip('“”"')
+    return result
+
+
 class StyleModel(object):
-    def __init__(self, scene=None, character=None, device="cuda"):
+    default_model_map = {
+        "三国演义": "stylellm/SanGuoYanYi-6b",
+        "西游记": "stylellm/XiYouji-6b",
+        "水浒传": "stylellm/ShuiHuZhuan-6b",
+        "红楼梦": "stylellm/HongLouMeng-6b",
+    }
+
+    def __init__(self, scene=None, character=None,
+                 model_name_or_path=None,
+                 device="cuda"):
         self.character = character
         self.device = device
-        self.tokenizer, self.model = self.prepare_model(scene)
+        self.model_name_or_path = model_name_or_path or self.default_model_map.get(scene)
+        self.tokenizer, self.model = self.prepare_model(self.model_name_or_path)
 
-    def prepare_model(self, scene):
-        model_map = {
-            "三国演义": "stylellm/SanGuoYanYi-6b",
-            "西游记": "stylellm/XiYouji-6b",
-            "水浒传": "stylellm/ShuiHuZhuan-6b",
-            "红楼梦": "stylellm/HongLouMeng-6b",
-        }
-        model_name = model_map.get(scene)
-        if model_name:
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
+    def prepare_model(self, model_name_or_path):
+        if model_name_or_path:
+            tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
             if self.device.startswith("cuda"):
                 model = AutoModelForCausalLM.from_pretrained(
-                    model_name, device_map=self.device, torch_dtype=torch.float16).eval()
+                    model_name_or_path, device_map=self.device, torch_dtype=torch.float16).eval()
             else:
                 model = AutoModelForCausalLM.from_pretrained(
-                    model_name, device_map=self.device).eval()
+                    model_name_or_path, device_map=self.device).eval()
             return tokenizer, model
         else:
-            print(f"Scene {scene} is not supported, no style is applied")
+            print("no style is applied")
             return None, None
 
     def prepare_input(self, prompt):
@@ -41,12 +57,15 @@ class StyleModel(object):
         generate_configs = {"do_sample": False, "repetition_penalty": 1.2}
         generate_configs.update(kwargs)
 
+        prompt = prompt.replace("\n", " ")
         messages = self.prepare_input(prompt)
-        input_ids = self.tokenizer.apply_chat_template(conversation=messages, tokenize=True, add_generation_prompt=True, return_tensors='pt').to(self.device)
+        input_ids = self.tokenizer.apply_chat_template(
+            conversation=messages, tokenize=True, add_generation_prompt=True, return_tensors='pt').to(self.device)
         output_ids = self.model.generate(input_ids, **generate_configs)
         response = self.tokenizer.decode(output_ids[0][input_ids.shape[1]:], skip_special_tokens=True)
 
-        begin, end = response.find('“'), response.rfind('”')
-        if not (begin > 0 and end > 0):
-            begin, end = response.find('"'), response.rfind('"')
-        return response[begin + 1: end]
+        response = response.replace("\n", " ")
+        if self.character is not None:
+            return unpack(response)
+        else:
+            return response
