@@ -4,42 +4,99 @@
 
 ## 项目介绍
 
-**通用大模型 × 文风大模型 = 多样化风格的🤖💬聊天机器人**
+> 通用大模型 × 文风大模型 = 多样化风格的🤖💬聊天机器人
 
-StyleLLM Chat利用通用大模型的通用能力（世界知识、逻辑推理、对话问答）和文风大模型（StyleLLM）的语言风格转化能力，探索实现多样化风格的聊天机器人，改变对话风格单一、AI味过重的状况。
+StyleLLM Chat利用通用大模型的通用能力（世界知识、逻辑推理、对话问答）和文风大模型（[StyleLLM](https://github.com/stylellm/stylellm_models)） 的语言风格转化能力，探索实现多样化风格的聊天机器人。
+
+利用StyleLLM模型对ChatGPT等通用大模型的输出进行风格改写，可改变对话风格单一、AI味过重的状况。
 
 
 ## 功能
-1. [x] 集成OpenAI API，填写api_key后可以调用ChatGPT对话能力。
-2. [x] 集成stylellm_models，支持对ChatGPT生成结果进行风格润色。
-3. [x] 支持通过场景（scene）和角色（character）参数，控制具体风格类型。
-4. [ ] TODO: 支持多轮对话。
-5. [ ] TODO: 更多功能探索中。
+- 集成OpenAI API，填写api_key后可以调用ChatGPT对话能力。
+- 集成Qwen模型，支持调用Qwen本地化模型对话能力。 
+- 集成stylellm_models，支持对ChatGPT或Qwen生成结果进行风格润色。
+- 支持通过场景（scene）和角色（character）参数，控制具体风格类型。
+- 支持多轮对话。
 
 
 ## 使用方法
-### 安装
+### 在Colab中快速使用 
+[打开Colab](https://colab.research.google.com/github/stylellm/stylellm_chat/blob/main/colab_web_demo_gradio.ipynb) ，运行notebook内容后，可进入如下Gradio界面进行对话：<br/>
+![demo1](https://github.com/stylellm/stylellm_chat/blob/main/%20assets/gradio_chat_1.png)
+![demo2](https://github.com/stylellm/stylellm_chat/blob/main/%20assets/gradio_chat_2.png)
+
+### 本地安装
 ```shell
 git clone https://github.com/stylellm/stylellm_chat.git
 cd stylellm_chat
 pip install -r requirements.txt
 ```
 
-### 运行
+### 运行（调用Qwen方式）
 ```python
-from stylellm_chat import StyleLLMChat, ChatGPTModel, StyleModel
+from stylellm_chat import StyleLLMChat, QwenChatModel, StyleModel
 
 sc = StyleLLMChat(
-    chat_model=ChatGPTModel(scene="红楼梦", character="黛玉", api_key="#replace with your api key#"),
-    style_model=StyleModel(scene="红楼梦", character="黛玉", device="cuda")
+    chat_model=QwenChatModel(
+        model_name_or_path="Qwen/Qwen1.5-7B-Chat", 
+        device="cuda",
+        scene=None, 
+        character=None
+    ),
+    style_model=StyleModel(
+        model_name_or_path="stylellm/HongLouMeng-6b", 
+        device="cuda",
+        scene="红楼梦", 
+        character="黛玉"
+    )
 )
 
 response = sc.chat("今天天气真不错")
 print(response)
 ```
-> **注意：**<br/>
+
+### 运行（调用ChatGPT方式）
+```python
+from stylellm_chat import StyleLLMChat, ChatGPTModel, StyleModel
+
+sc = StyleLLMChat(
+    chat_model=ChatGPTModel(
+        scene="红楼梦", 
+        character="黛玉", 
+        api_key="#replace with your api key#"
+    ),
+    style_model=StyleModel(
+        scene="红楼梦", 
+        character="黛玉", 
+        device="cuda"
+    )
+)
+
+response = sc.chat("今天天气真不错")
+print(response)
+```
+**注意：**
 > 运行上述代码需要替换**api_key**参数的内容，具体获取方式参考：https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 > 
+
+
+### 参数说明
+> - **QwenChatModel**
+>   - **`model_name_or_path`**: 对话模型名称或本地路径。可选值为Qwen1.5系列模型[[查看列表](https://huggingface.co/Qwen)]，如"Qwen/Qwen1.5-7B-Chat"
+>   - **`device`**: 对话模型使用的硬件。可选值为"cpu", "cuda"(或用"cuda:0", "cuda:1"指定不同显卡)
+>   - **`scene`**, **`character`** ：对话模型人设。设置后对话模型将扮演"scene中的character"。默认为None，即不使用角色扮演，保持对话模型原有的AI助理人设。
+>
+> - **ChatGPTModel**
+>   - **`model`**: 对话模型名称。可选值为GPT系列模型，如"gpt-3.5-turbo", "gpt-4-turbo"
+>   - **`api_key`**: openai api key
+>   - **`scene`**, **`character`** ：对话模型人设。设置后对话模型将扮演"scene中的character"。默认为None，即不使用角色扮演，保持对话模型原有的AI助理人设。
+>
+> - **StyleModel**
+>   - **`model_name_or_path`**: 风格模型名称或本地路径。可选值为stylellm系列模型[[查看列表](https://github.com/stylellm/stylellm_models?tab=readme-ov-file#%E6%A8%A1%E5%9E%8B%E5%88%97%E8%A1%A8)]，如"stylellm/HongLouMeng-6b"
+>   - **`device`**: 风格模型使用的硬件。可选值为"cpu", "cuda"(或用"cuda:0", "cuda:1"指定不同显卡)
+>   - **`scene`**, **`character`** ：风格类型。设置后风格模型将以"scene中的character"说话风格输出
+>
+
 
 ## 测试案例
 ### 无角色风格
