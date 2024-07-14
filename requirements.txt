@@ -1,4 +1,4 @@
-transformers
+transformers!=4.41.2
 torch
 openai
 accelerate
